@@ -1,13 +1,11 @@
 from datetime import datetime, timedelta
 from sqlalchemy import extract, func, case
+from sqlalchemy.orm import Session
 
-from .models import Department, Employee, EmployeePerformance, Project
-from .db import SessionLocal
-
-db = SessionLocal()
+from app.models import Department, Employee, EmployeePerformance, Project
 
 
-def get_top_performers():
+def get_top_performers(db: Session):
     last_year = datetime.now() - timedelta(days=365)
 
     func_avg_performance_score = func.avg(
@@ -30,7 +28,7 @@ def get_top_performers():
     } for item in results]
 
 
-def get_project_success_rate():
+def get_project_success_rate(db: Session, department_id: int):
     two_years_ago = datetime.now() - timedelta(days=365*2)
 
     # Subquery to calculate the average performance score per project
@@ -41,8 +39,8 @@ def get_project_success_rate():
         Project.end_date >= two_years_ago
     ).group_by(Project.id).subquery()
 
-    # Main query to calculate the number of successful projects per department
-    results = db.query(
+    # Main query to calculate the number of successful projects for the specified department
+    result = db.query(
         Department.id,
         Department.name,
         func.count(Project.id).label('total_projects'),
@@ -52,19 +50,24 @@ def get_project_success_rate():
                 else_=0
             )
         ).label('successful_projects')
-    ).join(Department.projects).join(subquery, Project.id == subquery.c.project_id).group_by(
+    ).join(Department.projects).join(subquery, Project.id == subquery.c.project_id).filter(
+        Department.id == department_id
+    ).group_by(
         Department.id, Department.name
-    ).all()
+    ).first()
 
-    return [{
-        "id": dept.id,
-        "name": dept.name,
-        "total_projects": dept.total_projects,
-        "successful_projects": dept.successful_projects
-    } for dept in results]
+    if result:
+        return {
+            "id": result.id,
+            "name": result.name,
+            "total_projects": result.total_projects,
+            "successful_projects": result.successful_projects
+        }
+    else:
+        return None
 
 
-def get_employee_mobility():
+def get_employee_mobility(db: Session):
     results = db.query(
         Employee.id,
         Employee.name,
@@ -81,7 +84,7 @@ def get_employee_mobility():
     } for emp in results]
 
 
-def get_departmental_performance_trends():
+def get_departmental_performance_trends(db: Session):
     three_years_ago = datetime.now() - timedelta(days=365*3)
 
     # Calculate quarter manually
