@@ -8,16 +8,18 @@ from app.models import Department, Employee, EmployeePerformance, Project
 def get_top_performers(db: Session):
     last_year = datetime.now() - timedelta(days=365)
 
-    func_avg_performance_score = func.avg(
-        EmployeePerformance.performance_score)
+    subquery = db.query(
+        EmployeePerformance.employee_id,
+        func.avg(EmployeePerformance.performance_score).label('average_score')
+    ).filter(EmployeePerformance.review_date >= last_year).group_by(EmployeePerformance.employee_id).subquery()
 
     results = db.query(
         Employee.id,
         Employee.name,
         Department.name.label('department_name'),
-        func_avg_performance_score.label('average_score')
-    ).join(Employee.department).join(Employee.performances).filter(EmployeePerformance.review_date >= last_year).group_by(Employee.id, Department.name).order_by(
-        func_avg_performance_score.desc()
+        subquery.c.average_score
+    ).join(Employee.department).join(subquery, Employee.id == subquery.c.employee_id).order_by(
+        subquery.c.average_score.desc()
     ).limit(10).all()
 
     return [{
@@ -35,31 +37,20 @@ def get_project_success_rate(db: Session, department_id: int):
     subquery = db.query(
         Project.id.label('project_id'),
         func.avg(EmployeePerformance.performance_score).label('average_score')
-    ).join(Project.performances).filter(
-        Project.end_date >= two_years_ago
+    ).join(EmployeePerformance, Project.id == EmployeePerformance.project_id).filter(
+        Project.end_date >= two_years_ago,
+        Project.department_id == department_id
     ).group_by(Project.id).subquery()
 
-    # Main query to calculate the number of successful projects for the specified department
+    # Main query to calculate total and successful projects
     result = db.query(
-        Department.id,
-        Department.name,
-        func.count(Project.id).label('total_projects'),
-        func.sum(
-            case(
-                (subquery.c.average_score > 70, 1),
-                else_=0
-            )
-        ).label('successful_projects')
-    ).join(Department.projects).join(subquery, Project.id == subquery.c.project_id).filter(
-        Department.id == department_id
-    ).group_by(
-        Department.id, Department.name
+        func.count(subquery.c.project_id).label('total_projects'),
+        func.sum(case((subquery.c.average_score > 70, 1), else_=0)).label(
+            'successful_projects')
     ).first()
 
     if result:
         return {
-            "id": result.id,
-            "name": result.name,
             "total_projects": result.total_projects,
             "successful_projects": result.successful_projects
         }
@@ -74,7 +65,7 @@ def get_employee_mobility(db: Session):
         func.count(func.distinct(Project.department_id)
                    ).label('departments_count'),
         func.avg(EmployeePerformance.performance_score).label('average_score')
-    ).join(Employee.performances).join(EmployeePerformance.project).join(Project.department).group_by(Employee.id).having(func.count(func.distinct(Project.department_id)) > 1).all()
+    ).join(Employee.performances).join(EmployeePerformance.project).group_by(Employee.id).having(func.count(func.distinct(Project.department_id)) > 1).all()
 
     return [{
         "id": emp.id,
@@ -87,12 +78,11 @@ def get_employee_mobility(db: Session):
 def get_departmental_performance_trends(db: Session):
     three_years_ago = datetime.now() - timedelta(days=365*3)
 
-    # Calculate quarter manually
     quarter_expr = case(
-        (extract('month', EmployeePerformance.review_date) <= 3, 1),
-        (extract('month', EmployeePerformance.review_date) <= 6, 2),
-        (extract('month', EmployeePerformance.review_date) <= 9, 3),
-        else_=4
+        (extract('month', EmployeePerformance.review_date).between(1, 3), 1),
+        (extract('month', EmployeePerformance.review_date).between(4, 6), 2),
+        (extract('month', EmployeePerformance.review_date).between(7, 9), 3),
+        (extract('month', EmployeePerformance.review_date).between(10, 12), 4)
     )
 
     results = db.query(
