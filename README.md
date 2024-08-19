@@ -16,7 +16,7 @@
 - Once the devcontainer opens, run the following commands in the container terminal to get the project up and running:
     ```
     python init_db.py
-    python seed_dp.py
+    python seed_db.py
     uvicorn app.main:app --reload
     ```
 
