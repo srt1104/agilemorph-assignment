@@ -3,3 +3,5 @@ fastapi
 uvicorn
 redis
 fastapi-cache2
+pytest
+python-dotenv
