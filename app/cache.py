@@ -7,10 +7,17 @@ try:
     redis_client = redis.Redis(host='localhost', port=6379, db=0)
     print("Connected to Redis.")
 except redis.ConnectionError as e:
-    print(f"Redis connection error: {e}")
+    redis_client = None
+    print(f"Failed to connect to Redis: {e}")
 
 
 # Initialize FastAPI Cache
 def init_cache():
-    FastAPICache.init(RedisBackend(redis_client), prefix="fastapi-cache")
-    print('Cache initialized!')
+    """
+    Initializes the cache backend for FastAPI using Redis.
+    """
+    if redis_client:
+        FastAPICache.init(RedisBackend(redis_client), prefix="my-cache")
+        print('Cache initialized!')
+    else:
+        print("Redis connection is not available, skipping cache initialization.")

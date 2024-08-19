@@ -9,6 +9,9 @@ Base = declarative_base()
 
 
 def get_db():
+    """
+    Yields a database session, ensuring it is properly closed after use.
+    """
     db = SessionLocal()
     try:
         yield db

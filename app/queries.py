@@ -6,6 +6,15 @@ from app.models import Department, Employee, EmployeePerformance, Project
 
 
 def get_top_performers(db: Session):
+    """
+    Retrieves the top 10 performers based on the average performance score over the last year.
+
+    Parameters:
+        db (Session): SQLAlchemy database session.
+
+    Returns:
+        list: A list of dictionaries containing the top performers' details.
+    """
     last_year = datetime.now() - timedelta(days=365)
 
     subquery = db.query(
@@ -31,9 +40,18 @@ def get_top_performers(db: Session):
 
 
 def get_project_success_rate(db: Session, department_id: int):
+    """
+    Calculates the success rate of projects within a department over the last two years.
+
+    Parameters:
+        db (Session): SQLAlchemy database session.
+        department_id (int): The ID of the department.
+
+    Returns:
+        dict: A dictionary containing the total number of projects and the number of successful projects.
+    """
     two_years_ago = datetime.now() - timedelta(days=365*2)
 
-    # Subquery to calculate the average performance score per project
     subquery = db.query(
         Project.id.label('project_id'),
         func.avg(EmployeePerformance.performance_score).label('average_score')
@@ -42,11 +60,10 @@ def get_project_success_rate(db: Session, department_id: int):
         Project.department_id == department_id
     ).group_by(Project.id).subquery()
 
-    # Main query to calculate total and successful projects
     result = db.query(
         func.count(subquery.c.project_id).label('total_projects'),
-        func.sum(case((subquery.c.average_score > 70, 1), else_=0)).label(
-            'successful_projects')
+        func.sum(case((subquery.c.average_score > 70, 1), else_=0)
+                 ).label('successful_projects')
     ).first()
 
     if result:
@@ -59,13 +76,24 @@ def get_project_success_rate(db: Session, department_id: int):
 
 
 def get_employee_mobility(db: Session):
+    """
+    Retrieves employees who have worked in more than one department and their average performance score.
+
+    Parameters:
+        db (Session): SQLAlchemy database session.
+
+    Returns:
+        list: A list of dictionaries containing employee mobility details.
+    """
     results = db.query(
         Employee.id,
         Employee.name,
         func.count(func.distinct(Project.department_id)
                    ).label('departments_count'),
         func.avg(EmployeePerformance.performance_score).label('average_score')
-    ).join(Employee.performances).join(EmployeePerformance.project).group_by(Employee.id).having(func.count(func.distinct(Project.department_id)) > 1).all()
+    ).join(Employee.performances).join(EmployeePerformance.project).group_by(Employee.id).having(
+        func.count(func.distinct(Project.department_id)) > 1
+    ).all()
 
     return [{
         "id": emp.id,
@@ -76,6 +104,15 @@ def get_employee_mobility(db: Session):
 
 
 def get_departmental_performance_trends(db: Session):
+    """
+    Analyzes the performance trends of departments over the last three years, grouped by quarter.
+
+    Parameters:
+        db (Session): SQLAlchemy database session.
+
+    Returns:
+        list: A list of dictionaries containing departmental performance trends.
+    """
     three_years_ago = datetime.now() - timedelta(days=365*3)
 
     quarter_expr = case(
@@ -90,7 +127,9 @@ def get_departmental_performance_trends(db: Session):
         extract('year', EmployeePerformance.review_date).label('year'),
         quarter_expr.label('quarter'),
         func.avg(EmployeePerformance.performance_score).label('average_score')
-    ).join(Employee, Employee.department_id == Department.id).join(Employee.performances).filter(EmployeePerformance.review_date >= three_years_ago).group_by(
+    ).join(Employee, Employee.department_id == Department.id).join(Employee.performances).filter(
+        EmployeePerformance.review_date >= three_years_ago
+    ).group_by(
         Department.name,
         extract('year', EmployeePerformance.review_date),
         quarter_expr

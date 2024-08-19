@@ -4,6 +4,17 @@ from .db import Base
 
 
 class Employee(Base):
+    """
+    Represents an employee in the company.
+
+    Attributes:
+        id (int): Unique identifier for the employee.
+        name (str): Full name of the employee.
+        age (int): Age of the employee.
+        department_id (int): Foreign key to the department the employee belongs to.
+        salary (float): Salary of the employee.
+        date_joined (date): The date when the employee joined the company.
+    """
     __tablename__ = 'employees'
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
@@ -18,6 +29,14 @@ class Employee(Base):
 
 
 class Department(Base):
+    """
+    Represents a department within the company.
+
+    Attributes:
+        id (int): Unique identifier for the department.
+        name (str): The name of the department.
+        location (str): The location of the department.
+    """
     __tablename__ = 'departments'
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
@@ -28,6 +47,16 @@ class Department(Base):
 
 
 class Project(Base):
+    """
+    Represents a project within the company.
+
+    Attributes:
+        id (int): Unique identifier for the project.
+        name (str): The name of the project.
+        start_date (date): The start date of the project.
+        end_date (date): The end date of the project.
+        department_id (int): Foreign key to the department that owns the project.
+    """
     __tablename__ = 'projects'
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
@@ -41,6 +70,16 @@ class Project(Base):
 
 
 class EmployeePerformance(Base):
+    """
+    Represents an employee's performance on a specific project.
+
+    Attributes:
+        id (int): Unique identifier for the performance record.
+        employee_id (int): Foreign key to the employee.
+        project_id (int): Foreign key to the project.
+        performance_score (float): The performance score of the employee on the project.
+        review_date (date): The date when the performance was reviewed.
+    """
     __tablename__ = 'employee_performance'
     id = Column(Integer, primary_key=True, index=True)
     employee_id = Column(Integer, ForeignKey('employees.id'), index=True)
