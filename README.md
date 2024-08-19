@@ -13,6 +13,8 @@
 
 - Open VS Code and in the VS Code command pallette, search for the command "Dev Containers: Open Folder in Container..." and provide the path to the locally cloned repo.
 
+- Create a .env file and copy the .env.example file contents into it.
+
 - Once the devcontainer opens, run the following commands in the container terminal to get the project up and running:
     ```
     python init_db.py
